@@ -1,14 +1,11 @@
-<h2>Your Portfolios</h2>
-<a href="{% url 'portfolio_form' %}">Create New</a>
-<ul>
-  {% for p in portfolios %}
-    <li>
-      <strong>{{ p.name }}</strong> - Risk: {{ p.risk_bucket }} | Expected Return: {{ p.expected_return }} | Expected Risk: {{ p.expected_risk }}
-      <ul>
-        {% for alloc in p.allocations.all %}
-          <li>{{ alloc.ticker }}: {{ alloc.percentage|floatformat:2 }}</li>
-        {% endfor %}
-      </ul>
-    </li>
-  {% endfor %}
-</ul>
+{% extends 'base.html' %}
+{% block content %}
+<h1>Dashboard</h1>
+<p>Welcome {{ user.username }}!</p>
+<p>Total Portfolio Value: {{ total_value }}</p>
+{% if has_risk_profile %}
+  <p>Your risk profile is complete.</p>
+{% else %}
+  <a href="{% url 'risk_profile' %}">Complete Risk Profile</a>
+{% endif %}
+{% endblock %}

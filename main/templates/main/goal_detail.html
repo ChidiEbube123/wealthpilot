@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Goal Detail: {{ goal.name }}</h1>
+<p>Probability of Success: {{ probability|floatformat:1 }}%</p>
+<p>Progress: {{ progress_percentage|floatformat:1 }}%</p>
+{% endblock %}

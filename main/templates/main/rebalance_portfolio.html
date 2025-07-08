@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Rebalance Portfolio</h1>
+{% if should_rebalance %}
+  <p>Your portfolio is out of balance.</p>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit">Rebalance</button>
+  </form>
+{% else %}
+  <p>Your portfolio is already well-balanced.</p>
+{% endif %}
+{% endblock %}

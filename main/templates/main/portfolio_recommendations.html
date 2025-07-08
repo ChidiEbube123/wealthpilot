@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Portfolio Recommendations</h1>
+<p>Based on your risk score: {{ risk_profile.overall_risk_score }}</p>
+<ul>
+  {% for allocation in allocations %}
+  <li>{{ allocation.asset.name }}: {{ allocation.percentage }}%</li>
+  {% endfor %}
+</ul>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Account Detail</h1>
+<p>Total Value: {{ total_value }}</p>
+<h2>Holdings</h2>
+<ul>
+  {% for holding in holdings %}
+  <li>{{ holding.asset.name }}: {{ holding.market_value }}</li>
+  {% endfor %}
+</ul>
+<h2>Recent Transactions</h2>
+<ul>
+  {% for transaction in transactions %}
+  <li>{{ transaction.transaction_type }} - {{ transaction.amount }} on {{ transaction.transaction_date }}</li>
+  {% endfor %}
+</ul>
+{% endblock %}
