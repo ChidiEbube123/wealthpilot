@@ -31,7 +31,6 @@ class PortfolioService:
     @staticmethod
     def get_portfolio_id(tol_score, cap_score):
         df = pd.read_csv('main/RiskMappingLookup.csv')
-        print(df)
         match_tol = (df['Tolerance_min'] <= tol_score) & (df['Tolerance_max'] >= tol_score)
         match_cap = (df['Capacity_min'] <= cap_score) & (df['Capacity_max'] >= cap_score)
         return df['Portfolio'][(match_tol & match_cap)].values[0]
