@@ -4,6 +4,10 @@ import pandas as pd
 from main.models import RiskQuestion, RiskAnswer
 import os
 
+#python manage.py import_data --questions "main/Risk Questions.csv" --answers "main/Risk Answers.csv" --clear
+
+
+
 class Command(BaseCommand):
     help = 'Import risk assessment data from CSV files'
     

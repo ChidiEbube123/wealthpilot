@@ -11,15 +11,22 @@ class PortfolioService:
         self.expected_risk = 0.0
 
     def create(self):
-        df = self._get_prices("20y")
-        mu = expected_returns.mean_historical_return(df)
-        S = risk_models.sample_cov(df)
-        ef = EfficientFrontier(mu, S)
-        ef.efficient_return(self.expected_return)
-        self.expected_risk = ef.portfolio_performance()[1]
-        weights = ef.clean_weights()
-        self.allocations = [{"ticker": k, "percentage": v} for k, v in weights.items()]
-        return self
+
+            df = self._get_prices("20y")
+            mu = expected_returns.mean_historical_return(df)
+            S = risk_models.sample_cov(df)
+            ef = EfficientFrontier(mu, S)
+            try:
+                ef.efficient_return(self.expected_return)
+                self.expected_risk = ef.portfolio_performance()[1]
+                weights = ef.clean_weights()
+                self.allocations = [{"ticker": k, "percentage": v} for k, v in weights.items()]
+                return self
+            except:
+                 print("OMo")
+                 
+                 
+
 
     def _get_prices(self, period):
         data = yf.download(self.tickers, group_by="Ticker", period=period)
@@ -30,10 +37,14 @@ class PortfolioService:
 
     @staticmethod
     def get_portfolio_id(tol_score, cap_score):
-        df = pd.read_csv('main/RiskMappingLookup.csv')
+        df = pd.read_csv('main/RiskMappingLookuptampered.csv')
         match_tol = (df['Tolerance_min'] <= tol_score) & (df['Tolerance_max'] >= tol_score)
         match_cap = (df['Capacity_min'] <= cap_score) & (df['Capacity_max'] >= cap_score)
-        return df['Portfolio'][(match_tol & match_cap)].values[0]
+        match = df[match_tol & match_cap]
+        if not match.empty:
+            return match['Portfolio'].values[0]
+        else:
+            raise ValueError(f"No portfolio mapping found for Tolerance Score: {tol_score}, Capacity Score: {cap_score}")
 
 
 '''

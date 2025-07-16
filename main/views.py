@@ -12,6 +12,11 @@ from django.views.decorators.http import require_http_methods
 from .models import RiskQuestion, RiskAnswer, RiskProfile, UserAnswer
 import json
 @login_required
+def home_view(request):
+    portfolio=UserProfile.objects.filter(user= request.answer)
+    #Pause
+    
+@login_required
 def create_portfolio_view(request):
     if request.method == "POST":
         tickers = request.POST['tickers']
@@ -101,12 +106,11 @@ def risk_questionnaire_view(request,assessment_id):
             # Calculate scores and mark as completed
             assessment.calculate_scores()
             assessment.completed = True
-            print(assessment)
             portfolio_id = PortfolioService.get_portfolio_id(assessment.tolerance_score, assessment.capacity_score)
-            tickers = "VTI TLT IEI GLD DBC"  # you can customize this
+            
+            tickers = get_tickers_by_risk(assessment.tolerance_score,assessment.capacity_score)[0]  # you can customize this
             expected_return = 0.001
-            portfolio=PortfolioModel.objects.get_or_create(id=portfolio_id)
-            service = PortfolioService(tickers, expected_return).create()
+            portfolio=PortfolioModel.objects.get_or_create(id=portfolio_id,defaults={'name':f"porfolio{portfolio_id}",'risk_bucket':assessment.total_score ,'expected_return':expected_return})#Not necessarrily the best            service = PortfolioService(tickers, expected_return).create()
             user_profile=UserProfile.objects.get_or_create(user=request.user)
             user_profile[0].portfolio=portfolio[0]
             user_profile[0].save()
@@ -179,3 +183,13 @@ def risk_assessment_results(request, assessment_id):
     }
     
     return render(request, 'main/results.html', context)
+
+def get_tickers_by_risk(tolerance, capacity):
+    if tolerance < 5:
+        return "AGG SHY GLD", 0.0003  # Very conservative
+    elif tolerance < 10:
+        return "BND IEI TIP", 0.0005  # Conservative
+    elif tolerance < 15:
+        return "VTI VNQ GLD", 0.0009  # Moderate
+    else:
+        return "VTI QQQ DBC", 0.0012  # Aggressive

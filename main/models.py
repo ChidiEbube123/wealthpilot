@@ -21,6 +21,8 @@ class AllocationModel(models.Model):
     portfolio = models.ForeignKey(PortfolioModel, related_name='allocations', on_delete=models.CASCADE)
     ticker = models.CharField(max_length=10)
     percentage = models.FloatField()
+    def __str__(self):
+        return f"Allocation for {self.portfolio} "
 
 
 class Transaction(models.Model):
@@ -67,8 +69,8 @@ class RiskProfile(models.Model):
                 capacity_weight += question.question_weight
         
         # Calculate average scores
-        self.tolerance_score = tolerance_total / tolerance_weight if tolerance_weight > 0 else 0
-        self.capacity_score = capacity_total / capacity_weight if capacity_weight > 0 else 0
+        self.tolerance_score = tolerance_total // tolerance_weight if tolerance_weight > 0 else 0
+        self.capacity_score = capacity_total // capacity_weight if capacity_weight > 0 else 0
         
         # Overall score (you can adjust this formula)
         self.total_score = (self.tolerance_score + self.capacity_score) / 2
