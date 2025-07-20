@@ -1,5 +1,72 @@
-{% extends 'base.html' %}
+{% extends 'main/   base.html' %}
+
+{% block title %}Your Portfolio Summary{% endblock %}
+
 {% block content %}
-<h1>Home</h1>
-<p>This is the Home page.</p>
+<div class="container mt-5">
+    <h2 class="mb-4">Your Portfolio</h2>
+
+    <div class="card p-4 mb-4">
+        <h4 class="mb-2">{{ portfolio.name }}</h4>
+        <p><strong>Expected Return:</strong> {{ portfolio.expected_return|floatformat:2 }}</p>
+        <p><strong>Risk Bucket Score:</strong> {{ portfolio.risk_bucket }}</p>
+    </div>
+
+    <div class="card p-4 mb-4">
+        <h5 class="mb-3">Asset Allocations</h5>
+
+        <!-- Pie chart -->
+        <canvas id="allocChart" width="400" height="400"></canvas>
+
+        <!-- Allocation table -->
+        <table class="table table-striped mt-4">
+            <thead>
+                <tr>
+                    <th>Ticker</th>
+                    <th>Allocation (%)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alloc in allocations %}
+                <tr>
+                    <td>{{ alloc.ticker }}</td>
+                    <td>{{ alloc.percentage|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('allocChart').getContext('2d');
+
+    const chart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: [{% for alloc in allocations %}'{{ alloc.ticker }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+            datasets: [{
+                label: 'Portfolio Allocation',
+                data: [{% for alloc in allocations %}{{ alloc.percentage|floatformat:2 }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                backgroundColor: [
+                    '#0d6efd', '#6f42c1', '#198754', '#ffc107', '#fd7e14',
+                    '#20c997', '#6610f2', '#dc3545', '#0dcaf0', '#adb5bd'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+</script>
 {% endblock %}

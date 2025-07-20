@@ -12,19 +12,26 @@ class PortfolioService:
 
     def create(self):
 
-            df = self._get_prices("20y")
-            mu = expected_returns.mean_historical_return(df)
-            S = risk_models.sample_cov(df)
-            ef = EfficientFrontier(mu, S)
+            price_data = self._get_prices("20y")
+            mu = expected_returns.mean_historical_return(price_data)
+            S = risk_models.sample_cov(price_data)
+
             try:
+                ef = EfficientFrontier(mu, S)
                 ef.efficient_return(self.expected_return)
-                self.expected_risk = ef.portfolio_performance()[1]
-                weights = ef.clean_weights()
-                self.allocations = [{"ticker": k, "percentage": v} for k, v in weights.items()]
-                return self
-            except:
-                 print("OMo")
-                 
+            except Exception as e:
+                print(f"efficient_return failed. Falling back to max Sharpe. Reason: {e}")
+                
+                # Recreate ef object before fallback
+                ef = EfficientFrontier(mu, S)
+                ef.max_sharpe()
+
+            self.expected_risk = ef.portfolio_performance()[1]
+            weights = ef.clean_weights()
+            self.allocations = [{"ticker": k, "percentage": v} for k, v in weights.items()]
+            return self
+
+                            
                  
 
 
