@@ -1,0 +1,754 @@
+# Django Robo Advisor Web Prototype
+
+## Project Structure
+```
+robo_advisor/
+├── manage.py
+├── requirements.txt
+├── robo_advisor/
+│   ├── __init__.py
+│   ├── settings.py
+│   ├── urls.py
+│   └── wsgi.py
+├── advisor/
+│   ├── __init__.py
+│   ├── admin.py
+│   ├── apps.py
+│   ├── models.py
+│   ├── views.py
+│   ├── urls.py
+│   ├── forms.py
+│   └── migrations/
+└── templates/
+    ├── base.html
+    ├── home.html
+    ├── login.html
+    ├── register.html
+    ├── risk_assessment.html
+    ├── portfolio.html
+    └── dashboard.html
+```
+
+## requirements.txt
+```
+Django==4.2.7
+django-crispy-forms==1.14.0
+crispy-bootstrap4==2022.1
+```
+
+## robo_advisor/settings.py
+```python
+import os
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+SECRET_KEY = 'your-secret-key-here'
+DEBUG = True
+ALLOWED_HOSTS = []
+
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'crispy_forms',
+    'crispy_bootstrap4',
+    'advisor',
+]
+
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+ROOT_URLCONF = 'robo_advisor.urls'
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [BASE_DIR / 'templates'],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
+
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']
+
+LOGIN_REDIRECT_URL = 'dashboard'
+LOGOUT_REDIRECT_URL = 'home'
+
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap4"
+CRISPY_TEMPLATE_PACK = "bootstrap4"
+```
+
+## robo_advisor/urls.py
+```python
+from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('', include('advisor.urls')),
+]
+```
+
+## advisor/models.py
+```python
+from django.db import models
+from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator, MaxValueValidator
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    age = models.IntegerField(validators=[MinValueValidator(18), MaxValueValidator(100)])
+    annual_income = models.DecimalField(max_digits=12, decimal_places=2)
+    investment_experience = models.CharField(max_length=20, choices=[
+        ('beginner', 'Beginner'),
+        ('intermediate', 'Intermediate'),
+        ('advanced', 'Advanced'),
+    ])
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username}'s Profile"
+
+class RiskAssessment(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    risk_tolerance = models.CharField(max_length=20, choices=[
+        ('conservative', 'Conservative'),
+        ('moderate', 'Moderate'),
+        ('aggressive', 'Aggressive'),
+    ])
+    time_horizon = models.IntegerField(help_text="Investment time horizon in years")
+    financial_goals = models.TextField()
+    risk_score = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(10)])
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.username}'s Risk Assessment"
+
+class Portfolio(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    portfolio_type = models.CharField(max_length=20, choices=[
+        ('conservative', 'Conservative'),
+        ('balanced', 'Balanced'),
+        ('growth', 'Growth'),
+        ('aggressive', 'Aggressive Growth'),
+    ])
+    stocks_percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    bonds_percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    etfs_percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    cash_percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    expected_return = models.DecimalField(max_digits=5, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.username}'s Portfolio"
+
+class Investment(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    symbol = models.CharField(max_length=10)
+    name = models.CharField(max_length=100)
+    asset_type = models.CharField(max_length=20, choices=[
+        ('stock', 'Stock'),
+        ('bond', 'Bond'),
+        ('etf', 'ETF'),
+        ('cash', 'Cash'),
+    ])
+    shares = models.DecimalField(max_digits=10, decimal_places=4)
+    purchase_price = models.DecimalField(max_digits=10, decimal_places=2)
+    current_price = models.DecimalField(max_digits=10, decimal_places=2)
+    purchase_date = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.symbol} - {self.user.username}"
+
+    @property
+    def total_value(self):
+        return self.shares * self.current_price
+
+    @property
+    def gain_loss(self):
+        return (self.current_price - self.purchase_price) * self.shares
+
+    @property
+    def gain_loss_percentage(self):
+        if self.purchase_price > 0:
+            return ((self.current_price - self.purchase_price) / self.purchase_price) * 100
+        return 0
+```
+
+## advisor/forms.py
+```python
+from django import forms
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
+from .models import UserProfile, RiskAssessment
+
+class CustomUserCreationForm(UserCreationForm):
+    email = forms.EmailField(required=True)
+    first_name = forms.CharField(max_length=30, required=True)
+    last_name = forms.CharField(max_length=30, required=True)
+
+    class Meta:
+        model = User
+        fields = ("username", "first_name", "last_name", "email", "password1", "password2")
+
+class UserProfileForm(forms.ModelForm):
+    class Meta:
+        model = UserProfile
+        fields = ['age', 'annual_income', 'investment_experience']
+        widgets = {
+            'annual_income': forms.NumberInput(attrs={'step': '0.01'}),
+        }
+
+class RiskAssessmentForm(forms.ModelForm):
+    # Additional questions for risk assessment
+    market_volatility = forms.ChoiceField(
+        choices=[
+            (1, 'Very uncomfortable - I would sell immediately'),
+            (2, 'Uncomfortable - I would consider selling'),
+            (3, 'Neutral - I would hold my investments'),
+            (4, 'Comfortable - I would consider buying more'),
+            (5, 'Very comfortable - I would definitely buy more'),
+        ],
+        widget=forms.RadioSelect,
+        label="How would you react to a 20% market decline?"
+    )
+    
+    investment_priority = forms.ChoiceField(
+        choices=[
+            (1, 'Preserve capital - avoid losses'),
+            (2, 'Generate income - steady returns'),
+            (3, 'Balanced - moderate growth with some income'),
+            (4, 'Growth - maximize long-term returns'),
+            (5, 'Aggressive growth - maximum returns regardless of risk'),
+        ],
+        widget=forms.RadioSelect,
+        label="What is your primary investment priority?"
+    )
+
+    class Meta:
+        model = RiskAssessment
+        fields = ['time_horizon', 'financial_goals']
+        widgets = {
+            'financial_goals': forms.Textarea(attrs={'rows': 4}),
+        }
+```
+
+## advisor/views.py
+```python
+from django.shortcuts import render, redirect
+from django.contrib.auth import login
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db import transaction
+from .forms import CustomUserCreationForm, UserProfileForm, RiskAssessmentForm
+from .models import UserProfile, RiskAssessment, Portfolio, Investment
+import random
+
+def home(request):
+    return render(request, 'home.html')
+
+def register(request):
+    if request.method == 'POST':
+        form = CustomUserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            messages.success(request, 'Registration successful! Please complete your profile.')
+            return redirect('risk_assessment')
+    else:
+        form = CustomUserCreationForm()
+    return render(request, 'register.html', {'form': form})
+
+@login_required
+def risk_assessment(request):
+    # Check if user already has a risk assessment
+    try:
+        risk_assessment = RiskAssessment.objects.get(user=request.user)
+        return redirect('portfolio')
+    except RiskAssessment.DoesNotExist:
+        pass
+
+    if request.method == 'POST':
+        form = RiskAssessmentForm(request.POST)
+        profile_form = UserProfileForm(request.POST)
+        
+        if form.is_valid() and profile_form.is_valid():
+            with transaction.atomic():
+                # Save user profile
+                profile = profile_form.save(commit=False)
+                profile.user = request.user
+                profile.save()
+                
+                # Calculate risk score
+                market_volatility = int(request.POST.get('market_volatility', 3))
+                investment_priority = int(request.POST.get('investment_priority', 3))
+                
+                # Simple risk scoring algorithm
+                risk_score = (market_volatility + investment_priority) / 2
+                time_horizon = form.cleaned_data['time_horizon']
+                
+                # Adjust for time horizon
+                if time_horizon > 20:
+                    risk_score += 1
+                elif time_horizon > 10:
+                    risk_score += 0.5
+                elif time_horizon < 5:
+                    risk_score -= 1
+                
+                # Determine risk tolerance
+                if risk_score <= 2:
+                    risk_tolerance = 'conservative'
+                elif risk_score <= 3.5:
+                    risk_tolerance = 'moderate'
+                else:
+                    risk_tolerance = 'aggressive'
+                
+                # Save risk assessment
+                assessment = form.save(commit=False)
+                assessment.user = request.user
+                assessment.risk_tolerance = risk_tolerance
+                assessment.risk_score = int(risk_score)
+                assessment.save()
+                
+                # Generate portfolio
+                generate_portfolio(request.user, risk_tolerance)
+                
+                messages.success(request, 'Risk assessment completed! Your portfolio has been generated.')
+                return redirect('portfolio')
+    else:
+        form = RiskAssessmentForm()
+        profile_form = UserProfileForm()
+    
+    return render(request, 'risk_assessment.html', {
+        'form': form,
+        'profile_form': profile_form
+    })
+
+def generate_portfolio(user, risk_tolerance):
+    """Generate a portfolio based on risk tolerance"""
+    portfolio_allocations = {
+        'conservative': {
+            'portfolio_type': 'conservative',
+            'stocks_percentage': 30,
+            'bonds_percentage': 50,
+            'etfs_percentage': 15,
+            'cash_percentage': 5,
+            'expected_return': 5.5
+        },
+        'moderate': {
+            'portfolio_type': 'balanced',
+            'stocks_percentage': 50,
+            'bonds_percentage': 30,
+            'etfs_percentage': 15,
+            'cash_percentage': 5,
+            'expected_return': 7.2
+        },
+        'aggressive': {
+            'portfolio_type': 'growth',
+            'stocks_percentage': 70,
+            'bonds_percentage': 15,
+            'etfs_percentage': 12,
+            'cash_percentage': 3,
+            'expected_return': 9.1
+        }
+    }
+    
+    allocation = portfolio_allocations.get(risk_tolerance, portfolio_allocations['moderate'])
+    
+    Portfolio.objects.create(
+        user=user,
+        **allocation
+    )
+    
+    # Generate sample investments
+    sample_investments = [
+        {'symbol': 'VTI', 'name': 'Vanguard Total Stock Market ETF', 'asset_type': 'etf'},
+        {'symbol': 'BND', 'name': 'Vanguard Total Bond Market ETF', 'asset_type': 'bond'},
+        {'symbol': 'AAPL', 'name': 'Apple Inc.', 'asset_type': 'stock'},
+        {'symbol': 'MSFT', 'name': 'Microsoft Corporation', 'asset_type': 'stock'},
+        {'symbol': 'GOOGL', 'name': 'Alphabet Inc.', 'asset_type': 'stock'},
+    ]
+    
+    for inv in sample_investments[:3]:  # Add 3 sample investments
+        price = random.uniform(50, 300)
+        Investment.objects.create(
+            user=user,
+            symbol=inv['symbol'],
+            name=inv['name'],
+            asset_type=inv['asset_type'],
+            shares=random.uniform(1, 50),
+            purchase_price=price,
+            current_price=price * random.uniform(0.9, 1.1)  # Simulate price movement
+        )
+
+@login_required
+def portfolio(request):
+    try:
+        portfolio = Portfolio.objects.get(user=request.user)
+        investments = Investment.objects.filter(user=request.user)
+        
+        # Calculate total portfolio value
+        total_value = sum(inv.total_value for inv in investments)
+        total_gain_loss = sum(inv.gain_loss for inv in investments)
+        
+        context = {
+            'portfolio': portfolio,
+            'investments': investments,
+            'total_value': total_value,
+            'total_gain_loss': total_gain_loss,
+        }
+        return render(request, 'portfolio.html', context)
+    except Portfolio.DoesNotExist:
+        messages.info(request, 'Please complete your risk assessment first.')
+        return redirect('risk_assessment')
+
+@login_required
+def dashboard(request):
+    try:
+        portfolio = Portfolio.objects.get(user=request.user)
+        investments = Investment.objects.filter(user=request.user)
+        risk_assessment = RiskAssessment.objects.get(user=request.user)
+        
+        # Calculate portfolio metrics
+        total_value = sum(inv.total_value for inv in investments)
+        total_gain_loss = sum(inv.gain_loss for inv in investments)
+        
+        # Asset allocation data for chart
+        allocation_data = {
+            'stocks': float(portfolio.stocks_percentage),
+            'bonds': float(portfolio.bonds_percentage),
+            'etfs': float(portfolio.etfs_percentage),
+            'cash': float(portfolio.cash_percentage),
+        }
+        
+        context = {
+            'portfolio': portfolio,
+            'investments': investments,
+            'risk_assessment': risk_assessment,
+            'total_value': total_value,
+            'total_gain_loss': total_gain_loss,
+            'allocation_data': allocation_data,
+        }
+        return render(request, 'dashboard.html', context)
+    except (Portfolio.DoesNotExist, RiskAssessment.DoesNotExist):
+        messages.info(request, 'Please complete your risk assessment first.')
+        return redirect('risk_assessment')
+```
+
+## advisor/urls.py
+```python
+from django.urls import path
+from django.contrib.auth import views as auth_views
+from . import views
+
+urlpatterns = [
+    path('', views.home, name='home'),
+    path('register/', views.register, name='register'),
+    path('login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+    path('risk-assessment/', views.risk_assessment, name='risk_assessment'),
+    path('portfolio/', views.portfolio, name='portfolio'),
+    path('dashboard/', views.dashboard, name='dashboard'),
+]
+```
+
+## advisor/admin.py
+```python
+from django.contrib import admin
+from .models import UserProfile, RiskAssessment, Portfolio, Investment
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ['user', 'age', 'annual_income', 'investment_experience', 'created_at']
+    list_filter = ['investment_experience', 'created_at']
+
+@admin.register(RiskAssessment)
+class RiskAssessmentAdmin(admin.ModelAdmin):
+    list_display = ['user', 'risk_tolerance', 'risk_score', 'time_horizon', 'created_at']
+    list_filter = ['risk_tolerance', 'created_at']
+
+@admin.register(Portfolio)
+class PortfolioAdmin(admin.ModelAdmin):
+    list_display = ['user', 'portfolio_type', 'expected_return', 'created_at']
+    list_filter = ['portfolio_type', 'created_at']
+
+@admin.register(Investment)
+class InvestmentAdmin(admin.ModelAdmin):
+    list_display = ['user', 'symbol', 'name', 'asset_type', 'shares', 'current_price', 'purchase_date']
+    list_filter = ['asset_type', 'purchase_date']
+```
+
+## Templates
+
+### templates/base.html
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Robo Advisor{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .navbar-brand {
+            font-weight: bold;
+            color: #28a745 !important;
+        }
+        .card {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: none;
+        }
+        .btn-primary {
+            background-color: #28a745;
+            border-color: #28a745;
+        }
+        .btn-primary:hover {
+            background-color: #218838;
+            border-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'home' %}">
+                <i class="fas fa-chart-line"></i> RoboAdvisor
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    {% if user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'portfolio' %}">Portfolio</a>
+                        </li>
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav">
+                    {% if user.is_authenticated %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                                <i class="fas fa-user"></i> {{ user.first_name|default:user.username }}
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'logout' %}">Logout</a></li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'login' %}">Login</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'register' %}">Register</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mt-4">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer class="bg-dark text-light mt-5 py-4">
+        <div class="container text-center">
+            <p>&copy; 2024 RoboAdvisor. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+```
+
+### templates/home.html
+```html
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-6">
+        <div class="hero-section">
+            <h1 class="display-4 fw-bold text-success">Smart Investing Made Simple</h1>
+            <p class="lead">Let our AI-powered robo advisor create a personalized investment portfolio tailored to your risk tolerance and financial goals.</p>
+            
+            {% if not user.is_authenticated %}
+                <div class="mt-4">
+                    <a href="{% url 'register' %}" class="btn btn-primary btn-lg me-3">Get Started</a>
+                    <a href="{% url 'login' %}" class="btn btn-outline-secondary btn-lg">Login</a>
+                </div>
+            {% else %}
+                <div class="mt-4">
+                    <a href="{% url 'dashboard' %}" class="btn btn-primary btn-lg">View Dashboard</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-brain fa-3x text-primary mb-3"></i>
+                        <h5>AI-Powered</h5>
+                        <p>Advanced algorithms analyze your profile to create optimal portfolios.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-shield-alt fa-3x text-success mb-3"></i>
+                        <h5>Risk Management</h5>
+                        <p>Diversified portfolios designed to match your risk tolerance.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-chart-bar fa-3x text-info mb-3"></i>
+                        <h5>Real-time Tracking</h5>
+                        <p>Monitor your investments and portfolio performance 24/7.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-dollar-sign fa-3x text-warning mb-3"></i>
+                        <h5>Low Fees</h5>
+                        <p>Competitive fees with transparent pricing and no hidden costs.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-12">
+        <h2 class="text-center mb-4">How It Works</h2>
+        <div class="row">
+            <div class="col-md-4 text-center mb-4">
+                <div class="step-number bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                    <span class="fw-bold">1</span>
+                </div>
+                <h5>Complete Risk Assessment</h5>
+                <p>Answer a few questions about your financial goals and risk tolerance.</p>
+            </div>
+            <div class="col-md-4 text-center mb-4">
+                <div class="step-number bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                    <span class="fw-bold">2</span>
+                </div>
+                <h5>Get Your Portfolio</h5>
+                <p>Receive a personalized investment portfolio based on your profile.</p>
+            </div>
+            <div class="col-md-4 text-center mb-4">
+                <div class="step-number bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                    <span class="fw-bold">3</span>
+                </div>
+                <h5>Track & Optimize</h5>
+                <p>Monitor performance and let our system rebalance your portfolio.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+```
+
+## Setup Instructions
+
+1. **Create virtual environment:**
+```bash
+python -m venv robo_advisor_env
+source robo_advisor_env/bin/activate  # On Windows: robo_advisor_env\Scripts\activate
+```
+
+2. **Install dependencies:**
+```bash
+pip install -r requirements.txt
+```
+
+3. **Run migrations:**
+```bash
+python manage.py makemigrations
+python manage.py migrate
+```
+
+4. **Create superuser:**
+```bash
+python manage.py createsuperuser
+```
+
+5. **Run development server:**
+```bash
+python manage.py runserver
+```
+
+## Features
+
+- **User Authentication**: Registration, login, logout
+- **Risk Assessment**: Comprehensive questionnaire to determine risk tolerance
+- **Portfolio Generation**: AI-powered portfolio allocation based on risk profile
+- **Investment Tracking**: Monitor individual stocks, bonds, ETFs
+- **Dashboard**: Real-time portfolio overview with charts
+- **Responsive Design**: Mobile-friendly Bootstrap interface
+- **Admin Panel**: Django admin for managing users and investments
+
+## Key Components
+
+1. **Models**: UserProfile, RiskAssessment, Portfolio, Investment
+2. **Forms**: Custom registration, risk assessment, profile forms
+3. **Views**: Home, registration, risk assessment, portfolio, dashboard
+4. **Templates**: Responsive HTML templates with Bootstrap
+5. **Risk Algorithm**: Simple scoring system based on user responses
+6. **Portfolio Allocation**: Predefined asset allocations by risk level
+
+This prototype provides a solid foundation for a robo advisor platform with room for enhancement like real market data integration, advanced algorithms, and automated rebalancing.

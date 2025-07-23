@@ -59,6 +59,8 @@ def dashboard_view(request):
 
 def signup_view(request):
     if request.method == 'POST':
+
+
         form = UserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
@@ -113,21 +115,44 @@ def risk_questionnaire_view(request,assessment_id):
             # Calculate scores and mark as completed
             assessment.calculate_scores()
             assessment.completed = True
+            #Instead of getting id why now not get id and get or create by risk score?  
             portfolio_id = PortfolioService.get_portfolio_id(assessment.tolerance_score, assessment.capacity_score)
             tickers = get_tickers_by_risk(assessment.tolerance_score,assessment.capacity_score)[0]  # you can customize this
             expected_return = 0.02
             portfolio,created=PortfolioModel.objects.get_or_create(id=portfolio_id,defaults={'name':f"porfolio{portfolio_id}",'risk_bucket':assessment.total_score ,'expected_return':expected_return})#Not necessarrily the best            service = PortfolioService(tickers, expected_return).create()
             print(portfolio)
-            if (created):
+            if created:
                 service = PortfolioService(tickers, expected_return).create()
-                print(portfolio[0])
-                for alloc in service.allocations:
-                            AllocationModel.objects.create(
-                                portfolio=portfolio,
-                                ticker=alloc["ticker"], 
-                                percentage=alloc["percentage"]
-                            )
+                print("=== DEBUGGING ALLOCATIONS ===")
+                for i, alloc in enumerate(service.allocations):
+                    print(f"Allocation {i}: {alloc}")
+                    print(f"  Ticker type: {type(alloc['ticker'])}")
+                    print(f"  Percentage type: {type(alloc['percentage'])}")
+                    print(f"  Percentage value: {alloc['percentage']}")
+                    
+                    # Check if percentage is still a NumPy array somehow
+                    if hasattr(alloc['percentage'], '__array__'):
+                        print(f"  WARNING: Percentage is still array-like!")
+                    
+                    try:
+                        # Try creating the allocation
+                        
+                        allocation_obj = AllocationModel(
+                            portfolio=portfolio,
+                            ticker=alloc["ticker"],
+                        percentage=float(alloc["percentage"])  # Add explicit float conversion
+                        )
+                        print(f"  AllocationModel created successfully for {alloc['ticker']}")
+                        #allocation_obj.save()
+                        print(f"  AllocationModel saved successfully for {alloc['ticker']}")
+                    except Exception as e:
+                        print(f"  ERROR creating/saving allocation for {alloc['ticker']}: {e}")
+                        print(f"  Error type: {type(e)}")
+                        import traceback
+                        traceback.print_exc()
             user_profile=UserProfile.objects.get_or_create(user=request.user)
+
+            print(user_profile[0].balance)
             user_profile[0].portfolio=portfolio
             user_profile[0].save()
             assessment.save()

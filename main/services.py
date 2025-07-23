@@ -29,6 +29,7 @@ class PortfolioService:
             self.expected_risk = ef.portfolio_performance()[1]
             weights = ef.clean_weights()
             self.allocations = [{"ticker": k, "percentage": v} for k, v in weights.items()]
+            print(self.allocations)
             return self
 
                             

@@ -19,8 +19,8 @@ class UserProfile(models.Model):
 
 class AllocationModel(models.Model):
     portfolio = models.ForeignKey(PortfolioModel, related_name='allocations', on_delete=models.CASCADE)
-    ticker = models.CharField(max_length=10)
-    percentage = models.FloatField()
+    ticker = models.CharField(max_length=10,null=True)
+    percentage = models.FloatField(null=True)
     def __str__(self):
         return f"Allocation for {self.portfolio} "
 
