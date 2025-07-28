@@ -1,211 +1,198 @@
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
-from .services import PortfolioService
-from .models import PortfolioModel,RiskProfile, AllocationModel,UserProfile
-from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
-from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
-from .models import RiskQuestion, RiskAnswer, RiskProfile, UserAnswer
-import json
-@login_required
-def home_view(request):
-    profile = get_object_or_404(UserProfile, user=request.user)
-    allocation=AllocationModel.objects.filter(portfolio=profile.portfolio)
-    
-    context = {
-        "portfolio": profile.portfolio,
-        "allocations": allocation  
-    }
-    
-    return render(request, "main/home.html", context)
-    
-@login_required
-def create_portfolio_view(request):
-    if request.method == "POST":
-        tickers = request.POST['tickers']
-        expected_return = float(request.POST['expected_return'])
-        name = request.POST['name']
-        risk_bucket = int(request.POST['risk_bucket'])
+from django.db import transaction
+from .forms import CustomUserCreationForm, UserProfileForm, RiskAssessmentForm
+from .models import UserProfile, RiskAssessment, Portfolio, Investment
+import random
 
-        service = PortfolioService(tickers, expected_return).create()
+def home(request):
+    return render(request, 'main/home.html')
 
-        portfolio = PortfolioModel.objects.create(
-            user=request.user,
-            name=name,
-            risk_bucket=risk_bucket,
-            expected_return=expected_return,
-            expected_risk=service.expected_risk
-        )
-
-        for alloc in service.allocations:
-            AllocationModel.objects.create(
-                portfolio=portfolio,
-                ticker=alloc["ticker"],
-                percentage=alloc["percentage"]
-            )
-
-        return redirect('dashboard')
-
-    return render(request, 'main/form.html')
-
-@login_required
-def dashboard_view(request):
-    portfolios = PortfolioModel.objects.filter(user=request.user).order_by('-created_at')
-    return render(request, 'main/dashboard.html', {'portfolios': portfolios})
-
-def signup_view(request):
+def register(request):
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
             login(request, user)
-            return redirect('risk_assessment_start')
+            messages.success(request, 'Registration successful! Please complete your profile.')
+            return redirect('risk_assessment')
     else:
-        form = UserCreationForm()
-    return render(request, 'main/signup.html', {'form': form})
-
-def risk_questionnaire_view(request,assessment_id):
-    assessment = get_object_or_404(RiskProfile, id=assessment_id, user=request.user)
-    
-    if assessment.completed:
-        return redirect('risk_assessment_results', assessment_id=assessment.id)
-    
-    # Get all questions ordered by ID
-    questions = RiskQuestion.objects.prefetch_related('answers').order_by('question_id')
-    
-    # Get user's existing answers
-    existing_answers = {}
-    for user_answer in assessment.user_answers.select_related('selected_answer'):
-        existing_answers[user_answer.question_id] = user_answer.selected_answer.answer_id
-    
-    if request.method == 'POST':
-        # Process form submission
-        all_answered = True
-        
-        for question in questions:
-            answer_id = request.POST.get(f'question_{question.question_id}')
-            
-            if answer_id:
-                try:
-                    selected_answer = RiskAnswer.objects.get(
-                        answer_id=answer_id,
-                        question=question
-                    )
-                    
-                    # Create or update user answer
-                    UserAnswer.objects.update_or_create(
-                        assessment=assessment,
-                        question=question,
-                        defaults={'selected_answer': selected_answer}
-                    )
-                    
-                except RiskAnswer.DoesNotExist:
-                    messages.error(request, f'Invalid answer selected for question {question.question_id}')
-                    all_answered = False
-            else:
-                all_answered = False
-        
-        if all_answered:
-            # Calculate scores and mark as completed
-            assessment.calculate_scores()
-            assessment.completed = True
-            portfolio_id = PortfolioService.get_portfolio_id(assessment.tolerance_score, assessment.capacity_score)
-            tickers = get_tickers_by_risk(assessment.tolerance_score,assessment.capacity_score)[0]  # you can customize this
-            expected_return = 0.02
-            portfolio,created=PortfolioModel.objects.get_or_create(id=portfolio_id,defaults={'name':f"porfolio{portfolio_id}",'risk_bucket':assessment.total_score ,'expected_return':expected_return})#Not necessarrily the best            service = PortfolioService(tickers, expected_return).create()
-            print(portfolio)
-            if (created):
-                service = PortfolioService(tickers, expected_return).create()
-                print(portfolio[0])
-                for alloc in service.allocations:
-                            AllocationModel.objects.create(
-                                portfolio=portfolio,
-                                ticker=alloc["ticker"], 
-                                percentage=alloc["percentage"]
-                            )
-            user_profile=UserProfile.objects.get_or_create(user=request.user)
-            user_profile[0].portfolio=portfolio
-            user_profile[0].save()
-            assessment.save()
-            
-            messages.success(request, 'Risk assessment completed successfully!')
-
-            return redirect('risk_assessment_results', assessment_id=assessment.id)
-        else:
-            messages.error(request, 'Please answer all questions before submitting.')
-    total_questions = questions.count()
-    answered_questions = len(existing_answers)
-    progress_percentage = (answered_questions / total_questions * 100) if total_questions > 0 else 0
-    
-    context = {
-        'assessment': assessment,
-        'questions': questions,
-        'existing_answers': existing_answers,
-        'progress_percentage': progress_percentage,
-        'total_questions': total_questions,
-        'answered_questions': answered_questions,
-    }
-    
-    return render(request, 'main/risk_questionnaire.html', context)
-
-def risk_assessment_start(request):
-    """Start a new risk assessment"""
-    # Check if user has incomplete assessment
-    incomplete_assessment = RiskProfile.objects.filter(
-        user=request.user, 
-        completed=False
-    ).first()
-    
-    if incomplete_assessment:
-        return redirect('risk_assessment_continue', assessment_id=incomplete_assessment.id)
-    
-    # Create new assessment
-    assessment = RiskProfile.objects.create(user=request.user)
-    return redirect('risk_assessment_continue', assessment_id=assessment.id)
+        form = CustomUserCreationForm()
+    return render(request, 'main/register.html', {'form': form})
 
 @login_required
-def risk_assessment_results(request, assessment_id):
-    """Display risk assessment results"""
-    assessment = get_object_or_404(
-        RiskProfile, 
-        id=assessment_id, 
-        user=request.user,
-        completed=True
-    )
+def risk_assessment(request):
+    # Check if user already has a risk assessment
+    try:
+        risk_assessment = RiskAssessment.objects.get(user=request.user)
+        return redirect('portfolio')
+    except RiskAssessment.DoesNotExist:
+        pass
+
+    if request.method == 'POST':
+        form = RiskAssessmentForm(request.POST)
+        profile_form = UserProfileForm(request.POST)
+        
+        if form.is_valid() and profile_form.is_valid():
+            with transaction.atomic():
+                # Save user profile
+                profile = profile_form.save(commit=False)
+                profile.user = request.user
+                profile.save()
+                
+                # Calculate risk score
+                market_volatility = int(request.POST.get('market_volatility', 3))
+                investment_priority = int(request.POST.get('investment_priority', 3))
+                
+                # Simple risk scoring algorithm
+                risk_score = (market_volatility + investment_priority) / 2
+                time_horizon = form.cleaned_data['time_horizon']
+                
+                # Adjust for time horizon
+                if time_horizon > 20:
+                    risk_score += 1
+                elif time_horizon > 10:
+                    risk_score += 0.5
+                elif time_horizon < 5:
+                    risk_score -= 1
+                
+                # Determine risk tolerance
+                if risk_score <= 2:
+                    risk_tolerance = 'conservative'
+                elif risk_score <= 3.5:
+                    risk_tolerance = 'moderate'
+                else:
+                    risk_tolerance = 'aggressive'
+                
+                # Save risk assessment
+                assessment = form.save(commit=False)
+                assessment.user = request.user
+                assessment.risk_tolerance = risk_tolerance
+                assessment.risk_score = int(risk_score)
+                assessment.save()
+                
+                # Generate portfolio
+                generate_portfolio(request.user, risk_tolerance)
+                
+                messages.success(request, 'Risk assessment completed! Your portfolio has been generated.')
+                return redirect('portfolio')
+    else:
+        form = RiskAssessmentForm()
+        profile_form = UserProfileForm()
     
-    # Get user answers with related data
-    user_answers = assessment.user_answers.select_related(
-        'question', 'selected_answer'
-    ).order_by('question__question_id')
-    
-    # Separate answers by question type
-    tolerance_answers = []
-    capacity_answers = []
-    
-    for user_answer in user_answers:
-        if user_answer.question.question_type == 'Tolerance':
-            tolerance_answers.append(user_answer)
-        else:
-            capacity_answers.append(user_answer)
-    context = {
-        'assessment': assessment,
-        'tolerance_answers': tolerance_answers,
-        'capacity_answers': capacity_answers,
- 
+    return render(request, 'main/risk_assessment.html', {
+        'form': form,
+        'profile_form': profile_form
+    })
+
+def generate_portfolio(user, risk_tolerance):
+    """Generate a portfolio based on risk tolerance"""
+    portfolio_allocations = {
+        'conservative': {
+            'portfolio_type': 'conservative',
+            'stocks_percentage': 30,
+            'bonds_percentage': 50,
+            'etfs_percentage': 15,
+            'cash_percentage': 5,
+            'expected_return': 5.5
+        },
+        'moderate': {
+            'portfolio_type': 'balanced',
+            'stocks_percentage': 50,
+            'bonds_percentage': 30,
+            'etfs_percentage': 15,
+            'cash_percentage': 5,
+            'expected_return': 7.2
+        },
+        'aggressive': {
+            'portfolio_type': 'growth',
+            'stocks_percentage': 70,
+            'bonds_percentage': 15,
+            'etfs_percentage': 12,
+            'cash_percentage': 3,
+            'expected_return': 9.1
+        }
     }
     
-    return render(request, 'main/results.html', context)
+    allocation = portfolio_allocations.get(risk_tolerance, portfolio_allocations['moderate'])
+    
+    Portfolio.objects.create(
+        user=user,
+        **allocation
+    )
+    
+    # Generate sample investments
+    sample_investments = [
+        {'symbol': 'VTI', 'name': 'Vanguard Total Stock Market ETF', 'asset_type': 'etf'},
+        {'symbol': 'BND', 'name': 'Vanguard Total Bond Market ETF', 'asset_type': 'bond'},
+        {'symbol': 'AAPL', 'name': 'Apple Inc.', 'asset_type': 'stock'},
+        {'symbol': 'MSFT', 'name': 'Microsoft Corporation', 'asset_type': 'stock'},
+        {'symbol': 'GOOGL', 'name': 'Alphabet Inc.', 'asset_type': 'stock'},
+    ]
+    
+    for inv in sample_investments[:3]:  # Add 3 sample investments
+        price = random.uniform(50, 300)
+        Investment.objects.create(
+            user=user,
+            symbol=inv['symbol'],
+            name=inv['name'],
+            asset_type=inv['asset_type'],
+            shares=random.uniform(1, 50),
+            purchase_price=price,
+            current_price=price * random.uniform(0.9, 1.1)  # Simulate price movement
+        )
 
-def get_tickers_by_risk(tolerance, capacity):
-    if tolerance < 5:
-        return "AGG SHY GLD", 0.0003  # Very conservative
-    elif tolerance < 10:
-        return "BND IEI TIP", 0.0005  # Conservative
-    elif tolerance < 15:
-        return "VTI VNQ GLD", 0.0009  # Moderate
-    else:
-        return "VTI QQQ DBC", 0.0012  # Aggressive
+@login_required
+def portfolio(request):
+    try:
+        portfolio = Portfolio.objects.get(user=request.user)
+        investments = Investment.objects.filter(user=request.user)
+        
+        # Calculate total portfolio value
+        total_value = sum(inv.total_value for inv in investments)
+        total_gain_loss = sum(inv.gain_loss for inv in investments)
+        
+        context = {
+            'portfolio': portfolio,
+            'investments': investments,
+            'total_value': total_value,
+            'total_gain_loss': total_gain_loss,
+        }
+        return render(request, 'main/portfolio.html', context)
+    except Portfolio.DoesNotExist:
+        messages.info(request, 'Please complete your risk assessment first.')
+        return redirect('risk_assessment')
+
+@login_required
+def dashboard(request):
+    try:
+        portfolio = Portfolio.objects.get(user=request.user)
+        investments = Investment.objects.filter(user=request.user)
+        risk_assessment = RiskAssessment.objects.get(user=request.user)
+        
+        # Calculate portfolio metrics
+        total_value = sum(inv.total_value for inv in investments)
+        total_gain_loss = sum(inv.gain_loss for inv in investments)
+        
+        # Asset allocation data for chart
+        allocation_data = {
+            'stocks': float(portfolio.stocks_percentage),
+            'bonds': float(portfolio.bonds_percentage),
+            'etfs': float(portfolio.etfs_percentage),
+            'cash': float(portfolio.cash_percentage),
+        }
+        
+        context = {
+            'portfolio': portfolio,
+            'investments': investments,
+            'risk_assessment': risk_assessment,
+            'total_value': total_value,
+            'total_gain_loss': total_gain_loss,
+            'allocation_data': allocation_data,
+        }
+        return render(request, 'main/dashboard.html', context)
+    except (Portfolio.DoesNotExist, RiskAssessment.DoesNotExist):
+        messages.info(request, 'Please complete your risk assessment first.')
+        return redirect('risk_assessment')

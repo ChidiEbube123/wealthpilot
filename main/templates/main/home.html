@@ -1,72 +1,92 @@
 {% extends 'main/base.html' %}
 
-{% block title %}Your Portfolio Summary{% endblock %}
-
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4">Your Portfolio</h2>
-
-    <div class="card p-4 mb-4">
-        <h4 class="mb-2">{{ portfolio.name }}</h4>
-        <p><strong>Expected Return:</strong> {{ portfolio.expected_return|floatformat:2 }}</p>
-        <p><strong>Risk Bucket Score:</strong> {{ portfolio.risk_bucket }}</p>
+<div class="row">
+    <div class="col-lg-6">
+        <div class="hero-section">
+            <h1 class="display-4 fw-bold text-success">Smart Investing Made Simple</h1>
+            <p class="lead">Let our AI-powered robo advisor create a personalized investment portfolio tailored to your risk tolerance and financial goals.</p>
+            
+            {% if not user.is_authenticated %}
+                <div class="mt-4">
+                    <a href="{% url 'register' %}" class="btn btn-primary btn-lg me-3">Get Started</a>
+                    <a href="{% url 'login' %}" class="btn btn-outline-secondary btn-lg">Login</a>
+                </div>
+            {% else %}
+                <div class="mt-4">
+                    <a href="{% url 'dashboard' %}" class="btn btn-primary btn-lg">View Dashboard</a>
+                </div>
+            {% endif %}
+        </div>
     </div>
-
-    <div class="card p-4 mb-4">
-        <h5 class="mb-3">Asset Allocations</h5>
-
-        <!-- Pie chart -->
-        <canvas id="allocChart" width="400" height="400"></canvas>
-
-        <!-- Allocation table -->
-        <table class="table table-striped mt-4">
-            <thead>
-                <tr>
-                    <th>Ticker</th>
-                    <th>Allocation (%)</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for alloc in allocations %}
-                <tr>
-                    <td>{{ alloc.ticker }}</td>
-                    <td>{{ alloc.percentage|floatformat:2 }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="col-lg-6">
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-brain fa-3x text-primary mb-3"></i>
+                        <h5>AI-Powered</h5>
+                        <p>Advanced algorithms analyze your profile to create optimal portfolios.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-shield-alt fa-3x text-success mb-3"></i>
+                        <h5>Risk Management</h5>
+                        <p>Diversified portfolios designed to match your risk tolerance.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-chart-bar fa-3x text-info mb-3"></i>
+                        <h5>Real-time Tracking</h5>
+                        <p>Monitor your investments and portfolio performance 24/7.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-dollar-sign fa-3x text-warning mb-3"></i>
+                        <h5>Low Fees</h5>
+                        <p>Competitive fees with transparent pricing and no hidden costs.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<!-- Chart.js CDN -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    const ctx = document.getElementById('allocChart').getContext('2d');
-
-    const chart = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: [{% for alloc in allocations %}'{{ alloc.ticker }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
-            datasets: [{
-                label: 'Portfolio Allocation',
-                data: [{% for alloc in allocations %}{{ alloc.percentage|floatformat:2 }}{% if not forloop.last %}, {% endif %}{% endfor %}],
-                backgroundColor: [
-                    '#0d6efd', '#6f42c1', '#198754', '#ffc107', '#fd7e14',
-                    '#20c997', '#6610f2', '#dc3545', '#0dcaf0', '#adb5bd'
-                ],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
-            }
-        }
-    });
-</script>
+<div class="row mt-5">
+    <div class="col-12">
+        <h2 class="text-center mb-4">How It Works</h2>
+        <div class="row">
+            <div class="col-md-4 text-center mb-4">
+                <div class="step-number bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                    <span class="fw-bold">1</span>
+                </div>
+                <h5>Complete Risk Assessment</h5>
+                <p>Answer a few questions about your financial goals and risk tolerance.</p>
+            </div>
+            <div class="col-md-4 text-center mb-4">
+                <div class="step-number bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                    <span class="fw-bold">2</span>
+                </div>
+                <h5>Get Your Portfolio</h5>
+                <p>Receive a personalized investment portfolio based on your profile.</p>
+            </div>
+            <div class="col-md-4 text-center mb-4">
+                <div class="step-number bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                    <span class="fw-bold">3</span>
+                </div>
+                <h5>Track & Optimize</h5>
+                <p>Monitor performance and let our system rebalance your portfolio.</p>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

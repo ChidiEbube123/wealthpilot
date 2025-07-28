@@ -1,11 +1,208 @@
-{% extends 'base.html' %}
+
+### templates/dashboard.html
+```html
+{% extends 'main/base.html' %}
+
+{% block title %}Dashboard - Robo Advisor{% endblock %}
+
 {% block content %}
-<h1>Dashboard</h1>
-<p>Welcome {{ user.username }}!</p>
-<p>Total Portfolio Value: {{ total_value }}</p>
-{% if has_risk_profile %}
-  <p>Your risk profile is complete.</p>
-{% else %}
-  <a href="{% url 'risk_profile' %}">Complete Risk Profile</a>
-{% endif %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-tachometer-alt"></i> Dashboard</h2>
+    <div>
+        <button class="btn btn-outline-primary btn-sm" onclick="refreshData()">
+            <i class="fas fa-sync-alt"></i> Refresh Data
+        </button>
+    </div>
+</div>
+
+<!-- Market Overview -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-globe"></i> Market Overview</h5>
+    </div>
+    <div class="card-body">
+        <div class="row" id="marketIndices">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h6>S&P 500</h6>
+                        <h5 class="text-primary">Loading...</h5>
+                        <small class="text-muted">--%</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h6>Dow Jones</h6>
+                        <h5 class="text-primary">Loading...</h5>
+                        <small class="text-muted">--%</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h6>NASDAQ</h6>
+                        <h5 class="text-primary">Loading...</h5>
+                        <small class="text-muted">--%</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h6>Russell 2000</h6>
+                        <h5 class="text-primary">Loading...</h5>
+                        <small class="text-muted">--%</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Portfolio Summary -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-line"></i> Portfolio Performance</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="performanceChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-wallet"></i> Portfolio Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Total Value:</span>
+                        <strong class="text-primary">${{ total_value|floatformat:2 }}</strong>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Total Gain/Loss:</span>
+                        <strong class="{% if total_gain_loss >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            ${{ total_gain_loss|floatformat:2 }}
+                        </strong>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Portfolio Type:</span>
+                        <span class="badge bg-primary">{{ portfolio.get_portfolio_type_display }}</span>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Risk Level:</span>
+                        <span class="badge bg-{{ risk_assessment.risk_tolerance|yesno:'danger,warning,success' }}">
+                            {{ risk_assessment.get_risk_tolerance_display }}
+                        </span>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Expected Return:</span>
+                        <strong class="text-success">{{ portfolio.expected_return }}%</strong>
+                    </div>
+                </div>
+                <hr>
+                <div class="d-grid">
+                    <a href="{% url 'portfolio' %}" class="btn btn-primary">
+                        <i class="fas fa-eye"></i> View Full Portfolio
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Holdings -->
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-star"></i> Top Holdings</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Name</th>
+                                <th>Current Price</th>
+                                <th>Value</th>
+                                <th>Change</th>
+                                <th>%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for investment in investments|slice:":5" %}
+                            <tr>
+                                <td><strong>{{ investment.symbol }}</strong></td>
+                                <td>{{ investment.name|truncatechars:30 }}</td>
+                                <td>${{ investment.current_price|floatformat:2 }}</td>
+                                <td>${{ investment.total_value|floatformat:2 }}</td>
+                                <td class="{% if investment.gain_loss >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ investment.gain_loss|floatformat:2 }}
+                                </td>
+                                <td class="{% if investment.gain_loss_percentage >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ investment.gain_loss_percentage|floatformat:1 }}%
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    No investments found
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Asset Allocation</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="allocationChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+// Portfolio Performance Chart
+const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+const performanceChart = new Chart(performanceCtx, {
+    type: 'line',
+    data: {
+        labels: [], // Will be populated with dates
+        datasets: [{
+            label: 'Portfolio Value',
+            data: [], // Will be populated with values
+            borderColor: '#0d6efd',
+            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+
+{% endblock %}
+

@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+
+{% block title %}Market Data - Robo Advisor{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-chart-bar"></i> Market Data</h2>
+    <div>
+        <button class="btn btn-outline-primary btn-sm" onclick="refreshData()">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#searchModal">
+            <i class="fas fa-search"></i> Search Stocks
+        </button>
+    </div>
+</div>
+
+<!-- Market Indices -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-globe"></i> Major Market Indices</h5>
+    </div>
+    <div class="card-body">
+        <div class="row" id="marketIndices">
+            {% for index in market_indices %}
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6 class="card-title">{{ index.name }}</h6>
+                        <h4 class="text-primary mb-1">{{ index.current_value|floatformat:2 }}</h4>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="{% if index.change >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                <i class="fas {% if index.change >= 0 %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>
+                                {{ index.change|floatformat:2 }} ({{ index.change_percent|floatformat:2 }}%)
+                            </small>
+                            <small class="text-muted">{{ index.last_updated|timesince }} ago</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-chart-line fa-3x mb-3"></i>
+                    <p>Market data will be updated shortly</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Popular Stocks -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-fire"></i> Popular Stocks</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Name</th>
+                        <th>Price</th>
+                        <th>Change</th>
+                        <th>% Change</th>
+                        <th>Volume</th>
+                        <th>Market Cap</th>
+                        <th>P/E Ratio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stock in popular_stocks %}
+                    <tr>
+                        <td><strong>{{ stock.symbol }}</strong></td>
+                        <td>{{ stock.name|truncatechars:40 }}</td>
+                        <td>${{ stock.current_price|floatformat:2 }}</td>
+                        <td class="{% if stock.change >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ stock.change|floatformat:2 }}
+                        </td>
+                        <td class="{% if stock.change_percent >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            <i class="fas {% if stock.change_percent >= 0 %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>
+                            {{ stock.change_percent|floatformat:2 }}%
+                        </td>
+                        <td>{{ stock.volume|default:"--" }}</td>
+                        <td>
+                            {% if stock.market_cap %}
+                                ${{ stock.market_cap|floatformat:0 }}B
+                            {% else %}
+                                --
+                            {% endif %}
+                        </td>
+                        <td>{{ stock.pe_ratio|default:"--" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            <i class="fas fa-database fa-2x mb-3"></i>
+                            <p>Stock data is being updated</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Stock Search Modal -->
+<div class="modal fade" id="searchModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-search"></i> Search Stocks</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="stockSearch" placeholder="Enter stock symbol (e.g., AAPL, GOOGL, TSLA)">
+                </div>
+                <div id="searchResults">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-search fa-2x mb-3"></i>
+                        <p>Enter a stock symbol to search</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function refreshData() {
+    location.reload();
+}
+
+// Stock search functionality
+document.getElementById('stockSearch').addEventListener('input', function(e) {
+    const query = e.target.value.trim();
+    if (query.length < 1) {
+        document.getElementById('searchResults').innerHTML = `
+            <div class="text-center text-muted">
+                <i class="fas fa-search fa-2x mb-3"></i>
+                <p>Enter a stock symbol to search</p>
+            </div>
+        `;
+        return;
+    }
+    
+    if (query.length >= 1) {
+        searchStock(query);
+    }
+});
+
+function searchStock(symbol) {
+    document.getElementById('searchResults').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Searching...</span>
+            </div>
+            <p class="mt-2">Searching for ${symbol}...</p>
+        </div>
+    `;
+    
+    fetch(`/api/stock-search/?q=${encodeURIComponent(symbol)}`)
+        .then(response => response.json())
+        .then(data => {
+            displaySearchResults(data);
+        })
+        .catch(error => {
+            document.getElementById('searchResults').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Error searching for stock data
+                </div>
+            `;
+        });
+}
+
+function displaySearchResults(data) {
+    const resultsContainer = document.getElementById('searchResults');
+    
+    if (!data || !data.symbol) {
+        resultsContainer.innerHTML = `
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                No stock data found. Please check the symbol and try again.
+            </div>
+        `;
+        return;
+    }
+    
+    const changeClass = data.change >= 0 ? 'text-success' : 'text-danger';
+    const changeIcon = data.change >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+    
+    resultsContainer.innerHTML = `
+        <div class="card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h5 class="card-title">
+                            <strong>${data.symbol}</strong> - ${data.name}
+                        </h5>
+                        <h3 class="text-primary">${data.current_price.toFixed(2)}</h3>
+                        <p class="${changeClass}">
+                            <i class="fas ${changeIcon}"></i>
+                            ${data.change.toFixed(2)} (${data.change_percent.toFixed(2)}%)
+                        </p>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">Volume</small>
+                                <div>${data.volume ? data.volume.toLocaleString() : '--'}</div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">P/E Ratio</small>
+                                <div>${data.pe_ratio ? data.pe_ratio.toFixed(2) : '--'}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+</script>
+{% endblock %}
+        datasets: [{
+            data: [
+                {{ portfolio.stocks_percentage }},
+                {{ portfolio.bonds_percentage }},
+                {{ portfolio.etfs_percentage }},
+                {{ portfolio.cash_percentage }}
+            ],
+            backgroundColor: [
+                '#0d6efd',
+                '#198754',
+                '#0dcaf0',
+                '#ffc107'
+            ],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

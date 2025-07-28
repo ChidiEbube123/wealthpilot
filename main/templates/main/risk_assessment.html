@@ -1,0 +1,111 @@
+{% extends 'main/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Risk Assessment - Robo Advisor{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-clipboard-list"></i> Investment Risk Assessment</h4>
+                <p class="mb-0 mt-2 text-muted">Help us understand your investment goals and risk tolerance</p>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Personal Information</h5>
+                            {{ profile_form|crispy }}
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Investment Goals</h5>
+                            {{ form|crispy }}
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="mb-4">
+                        <h5>Risk Tolerance Questions</h5>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">How would you react to a 20% market decline?</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="market_volatility" value="1" id="volatility1">
+                                <label class="form-check-label" for="volatility1">
+                                    Very uncomfortable - I would sell immediately
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="market_volatility" value="2" id="volatility2">
+                                <label class="form-check-label" for="volatility2">
+                                    Uncomfortable - I would consider selling
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="market_volatility" value="3" id="volatility3" checked>
+                                <label class="form-check-label" for="volatility3">
+                                    Neutral - I would hold my investments
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="market_volatility" value="4" id="volatility4">
+                                <label class="form-check-label" for="volatility4">
+                                    Comfortable - I would consider buying more
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="market_volatility" value="5" id="volatility5">
+                                <label class="form-check-label" for="volatility5">
+                                    Very comfortable - I would definitely buy more
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">What is your primary investment priority?</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="investment_priority" value="1" id="priority1">
+                                <label class="form-check-label" for="priority1">
+                                    Preserve capital - avoid losses
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="investment_priority" value="2" id="priority2">
+                                <label class="form-check-label" for="priority2">
+                                    Generate income - steady returns
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="investment_priority" value="3" id="priority3" checked>
+                                <label class="form-check-label" for="priority3">
+                                    Balanced - moderate growth with some income
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="investment_priority" value="4" id="priority4">
+                                <label class="form-check-label" for="priority4">
+                                    Growth - maximize long-term returns
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="investment_priority" value="5" id="priority5">
+                                <label class="form-check-label" for="priority5">
+                                    Aggressive growth - maximum returns regardless of risk
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-lg w-100">
+                        <i class="fas fa-chart-pie"></i> Generate My Portfolio
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
