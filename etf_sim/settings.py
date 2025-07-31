@@ -1,15 +1,16 @@
  
-
+from os import getenv
+from dotenv import load_dotenv
 from pathlib import Path
-
+load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
  
 SECRET_KEY = 'django-insecure-i^&_n(pnf1r1&!m543^06#+69ba=8l*y^5d$9%-0&zjr#20&g8'
 
 DEBUG = True
+ALLOWED_HOSTS = ['.vercel.app', '127.0.0.1','www.exclusivebemechlimited.com']
 
-ALLOWED_HOSTS = []
 
 
  
@@ -60,6 +61,9 @@ WSGI_APPLICATION = 'etf_sim.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+# Add these at the top of your settings.py
+
+'''
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -67,6 +71,22 @@ DATABASES = {
     }
 }
 
+'''
+# Replace the DATABASES section of your settings.py with this
+DATABASES = {
+  'default': {
+    'ENGINE': 'django.db.backends.postgresql',
+    'NAME': getenv('PGDATABASE'),
+    'USER': getenv('PGUSER'),
+    'PASSWORD': getenv('PGPASSWORD'),
+    'HOST': getenv('PGHOST'),
+    'PORT': getenv('PGPORT', 5432),
+    'OPTIONS': {
+      'sslmode': 'require',
+    },
+    'DISABLE_SERVER_SIDE_CURSORS': True,
+  }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
